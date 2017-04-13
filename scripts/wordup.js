@@ -53,7 +53,15 @@ function addNewWordSubmission(word) {
     // Do we already have a wordSubmission with this word?
     // TODO 21
     // replace the hardcoded 'false' with the real answer
-    var alreadyUsed = false;
+    var index = model.wordSubmissions.map(function(o) { return o.word; }).indexOf(word);
+    if (index != -1){
+        var alreadyUsed = true;
+    }
+    else{
+        var alreadyUsed = false;
+    }
+    console.log("is this already used "+ alreadyUsed);
+
 
     // if the word is valid and hasn't already been used, add it
     if (containsOnlyAllowedLetters(word) && alreadyUsed == false) {
@@ -74,7 +82,7 @@ function checkIfWordIsReal(word) {
     // make an AJAX call to the Pearson API
     $.ajax({
         // TODO 13 what should the url be?
-        url: "www.todo13.com",
+        url: "http://api.pearson.com/v2/dictionaries/lasde/entries?headword="+word,
         success: function(response) {
             console.log("We received a response from Pearson!");
 
@@ -85,10 +93,25 @@ function checkIfWordIsReal(word) {
             // Replace the 'true' below.
             // If the response contains any results, then the word is legitimate.
             // Otherwise, it is not.
-            var theAnswer = true;
+            if (response.results.length > 0){
+                var theAnswer = true;
+            }
+            else{
+                var theAnswer = false;
+            }
+            console.log(theAnswer);
+
+
 
             // TODO 15
-            // Update the corresponding wordSubmission in the model
+            // Update the corresponding wordSubmission in the mode
+            for (i=0; i<model.wordSubmissions.length; i++){
+                if ((model.wordSubmissions[i].isRealWord != true)&&(model.wordSubmissions[i].isRealWord != false)){
+                    model.wordSubmissions[i].isRealWord = theAnswer;
+                }
+            }
+
+            console.log(model.wordSubmissions);
 
 
             // re-render
@@ -115,7 +138,7 @@ function render() {
 
     // TODO 2
     // Update the curent time remaining on the scoreboard.
-
+    $("#time-remaining").text(model.secondsRemaining);
 
     // if the game has not started yet, just hide the #game container and exit
     if (model.gameHasStarted == false) {
@@ -130,23 +153,28 @@ function render() {
     $("#word-submissions").empty();
     // TODO 10
     // Add a few things to the above code block (underneath "// clear stuff").
-
+    $("#textbox").removeClass("bad-attempt");
+    $(".disallowed-letter").remove();
+    $("#textbox").prop('disabled', false);
 
     // reveal the #game container
     $("#game").show();
 
     // render the letter tiles
-    var letterChips = model.allowedLetters.map(letterChip)
+    var letterChips = model.allowedLetters.map(letterChip);
     $("#allowed-letters").append(letterChips);
 
     // TODO 11
     // Render the word submissions
+    var words = model.wordSubmissions.map(wordSubmissionChip);
+    $("#word-submissions").append(words);
 
 
     // Set the value of the textbox
     $("#textbox").val(model.currentAttempt);
     // TODO 3
     // Give focus to the textbox.
+    $("#textbox").focus();
 
 
     // if the current word attempt contains disallowed letters,
@@ -160,6 +188,7 @@ function render() {
 
         // TODO 8
         // append the red letter chips to the form
+        $("#word-attempt-form").append(redLetterChips);
 
     }
 
@@ -168,7 +197,9 @@ function render() {
     if (gameOver) {
         // TODO 9
         // disable the text box and clear its contents
-
+        box = $("#textbox");
+        box.prop('disabled', true);
+        $("#textbox").val("");
     }
 }
 
@@ -205,12 +236,23 @@ function wordSubmissionChip(wordSubmission) {
         var scoreChip = $("<span></span>").text("⟐");
         // TODO 17
         // give the scoreChip appropriate text content
+        if (wordSubmission.isRealWord == true){
+            scoreChip.text(wordScore(wordSubmission.word));
+            scoreChip.attr("class", "tag-sm");
+            scoreChip.css("color", "orange");
+        }
+        else if (wordSubmission.isRealWord == false){
+            scoreChip.text("X");
+            scoreChip.attr("class", "tag-sm bad-attempt");
+            scoreChip.css("color", "red");
+        }
 
         // TODO 18
         // give the scoreChip appropriate css classes
 
         // TODO 16
         // append scoreChip into wordChip
+        wordChip.append(scoreChip);
 
     }
 
@@ -242,7 +284,10 @@ $(document).ready(function() {
     // Add another event handler with a callback function.
     // When the textbox content changes,
     // update the .currentAttempt property of the model and re-render
-
+    $("#textbox").on("input", function(){
+        model.currentAttempt = $("#textbox").val();
+        render();
+    });
 
     // when the form is submitted
     $("#word-attempt-form").submit(function(evt) {
@@ -278,9 +323,14 @@ var scrabblePointsForEachLetter = {
  */
 function isDisallowedLetter(letter) {
     // TODO 7
+    if (model.allowedLetters.indexOf(letter)== -1) {
+        return true;
+    }
+    else {
+        return false;
+    }
     // This should return true if the letter is not an element of
     // the .allowedLetters list in the model
-    return false;
 }
 
 /**
@@ -299,7 +349,12 @@ function disallowedLettersInWord(word) {
 function containsOnlyAllowedLetters(word) {
     // TODO 12
     // Return the actual answer.
-    return true;
+    if (disallowedLettersInWord(word) ==""){
+        return true;
+    }
+    else {
+        return false;
+    }
 }
 
 /**
@@ -330,7 +385,8 @@ function wordScore(word) {
     // TODO 19
     // Replace the empty list below.
     // Map the list of letters into a list of scores, one for each letter.
-    var letterScores = [];
+
+    var letterScores = letters.map(letterScore)
 
     // return the total sum of the letter scores
     return letterScores.reduce(add, 0);
@@ -354,7 +410,7 @@ function currentScore() {
 
     // TODO 20
     // return the total sum of the word scores
-    return 0;
+    return wordScores.reduce(add, 0);
 }
 
 
